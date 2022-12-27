@@ -1,29 +1,39 @@
 import fs from 'fs';
 import path from 'path';
-import matter from 'gray-matter';
-import Link from 'next/link';
 import Layout from "@/components/Layout";
 import Post from '@/components/Post';
 import Pagination from '@/components/Pagination';
-import { sortByDate } from 'utils';
+import CategoryList from '@/components/CategoryList'
 import { POSTS_PER_PAGE } from 'config';
+import { getPosts } from '@/lib/posts';
 
-export default function BlogPage({ posts, numPages, currentPage }) {
+export default function BlogPage({ posts, numPages, currentPage, categories }) {
 
   // console.log(posts);
 
   return (
-    <Layout title={'Blog'}>
-      <h1 className='text-5xl border-b-4 p-5 font-bold'>Blog</h1>
+    <Layout>
+      <div className='flex justify-between flex-col md:flex-row'>
 
-      <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-5'>
-        {posts.map((post, index) => (
-          <Post key={index} post={post} />
-        ))}
+        {/* various blog posts */}
+        <div className='w-3/4 mr-10'>
+          <h1 className='text-5xl border-b-4 p-5 font-bold'>Blog</h1>
+
+          <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-5'>
+            {posts.map((post, index) => (
+              <Post key={index} post={post} />
+            ))}
+          </div>
+
+          <Pagination currentPage={currentPage} numPages={numPages} />
+        </div>
+
+        {/* list of categories */}
+        <div className='w-1/4'>
+          <CategoryList categories={categories} />
+        </div>
+
       </div>
-
-      <Pagination currentPage={currentPage} numPages={numPages} />
-
     </Layout>
   )
 }
@@ -64,42 +74,28 @@ export async function getStaticProps({ params }) {
   const files = fs.readdirSync(path.join('posts')); // creates an array of the markdown files in the posts folder.
 
   // creates an array of objects that contain a slug and frontmatter for each markdown file in the posts folder.
-  const posts = files.map(filename => {
-
-    const slug = filename.replace('.md', ''); // removes the .md file extension from the name of the markdown file
-
-    // console.log(slug);
-
-    const markdownWithMeta = fs.readFileSync(path.join('posts', filename), 'utf-8'); // gets the file content of the markdown files
-
-    // console.log(markdownWithMeta);
-
-    const { data: frontmatter } = matter(markdownWithMeta); // parse the data from markdownWithMeta into an object
-
-    // console.log(frontmatter);
-
-    return {
-      slug,
-      frontmatter
-    }
-
-  })
+  const posts = getPosts();
 
   // console.log(posts);
+
+  // Get categories for sidebar
+  const categories = posts.map((post) => post.frontmatter.category)
+  const uniqueCategories = [...new Set(categories)]
+
+  // console.log(uniqueCategories);
 
   // only show a certain number of posts per blog page (the number of post per page is set in the config/index.js)
   const numPages = Math.ceil(files.length / POSTS_PER_PAGE); // gets the number of posts per page
   const pageIndex = page - 1;
-  const orderedPosts = posts
-    .sort(sortByDate) // calls the 'sortByDate()' to sort the posts by the most recent date.
-    .slice(pageIndex * POSTS_PER_PAGE, (pageIndex + 1) * POSTS_PER_PAGE)
+  const orderedPosts = posts.slice(pageIndex * POSTS_PER_PAGE, (pageIndex + 1) * POSTS_PER_PAGE)
 
 
   return {
     props: {
       posts: orderedPosts,
       numPages,
-      currentPage: page
+      currentPage: page,
+      categories: uniqueCategories
     }
   }
 
